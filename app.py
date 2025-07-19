@@ -316,9 +316,9 @@ app = Flask(__name__)
 
 @app.route('/download-extract-upload', methods=['POST'])
 def download_extract_upload():
+    data = request.json
     if not data.get('api_key') or data.get('api_key') != os.getenv('APIKEY'):
         return jsonify({'error': 'API key is invalid or missing'}), 403
-    data = request.json
     download_path = './downloads'
     github_token = os.getenv('GITHUB_TOKEN')
     repo_name = data.get('repo_name')
