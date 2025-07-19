@@ -1,201 +1,78 @@
-# GitHub Release FTP Deploy
+# FtpHook
 
-A Python Flask webhook handler that automatically deploys GitHub releases to cPanel hosting via FTP.
+FtpHook is a Flask-based application designed to download the latest release from a GitHub repository and manage files via FTP.
 
 ## Features
 
-- **GitHub Webhook Integration**: Automatically triggered when new releases are published
-- **Release Download**: Downloads the latest release assets from GitHub
-- **Archive Extraction**: Supports ZIP and TAR.GZ archives
-- **FTP Upload**: Uploads extracted files to cPanel hosting via FTP
-- **Manual Deployment**: API endpoint for manual deployments
-- **Health Monitoring**: Health check endpoint for monitoring
+- Fetch the latest release from a GitHub repository.
+- Download release assets matching a specific pattern (`release-*.tar.gz`).
+- Upload files to an FTP server.
+- Environment variable support using `python-dotenv`.
 
-## Setup
+## Requirements
 
-### 1. Environment Configuration
+- Python 3.7 or higher
+- Docker (optional, for containerized deployment)
 
-Copy `.env.example` to `.env` and configure your settings:
+## Installation
 
-```bash
-cp .env.example .env
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/aliesm-com/FtpHook.git
+   cd FtpHook
+   ```
 
-Edit `.env` with your actual values:
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```env
-# GitHub Token (optional, for private repos)
-GITHUB_TOKEN=your_github_personal_access_token
+3. Set up environment variables:
+   Create a `.env` file in the root directory and add the following:
+   ```
+   API_KEY=your_api_key
+   GITHUB_TOKEN=your_github_token
+   FTP_HOST=ftp_host
+   FTP_USER=ftp_user
+   FTP_PASSWORD=ftp_password
+   ```
 
-# FTP Configuration (required)
-FTP_HOST=ftp.yourdomain.com
-FTP_USER=username@yourdomain.com
-FTP_PASSWORD=your_secure_password
-FTP_REMOTE_DIR=/public_html
+## Usage
 
-# Flask Configuration
-PORT=5000
-DEBUG=false
-```
+### Running Locally
 
-### 2. Install Dependencies
+1. Start the Flask application:
+   ```bash
+   python app.py
+   ```
 
-```bash
-pip install -r requirements.txt
-```
+2. Access the application at `http://localhost:5000`.
 
-### 3. Run the Application
+### Running with Docker
 
-```bash
-python app.py
-```
+1. Build and run the Docker container:
+   ```bash
+   docker-compose up --build
+   ```
 
-The service will start on `http://localhost:5000` (or your configured port).
+2. Access the application at `http://localhost:5000`.
 
-## API Endpoints
+## Project Structure
 
-### Webhook Endpoint
-- **URL**: `POST /webhook/github`
-- **Purpose**: Receives GitHub release notifications
-- **Headers**: Set this as your GitHub webhook URL
-
-### Manual Deployment
-- **URL**: `POST /deploy/<owner>/<repo>`
-- **Purpose**: Manually trigger deployment of the latest release
-- **Example**: `POST /deploy/aliesm-com/FtpHook`
-
-### Health Check
-- **URL**: `GET /health`
-- **Purpose**: Check service status
-
-### API Info
-- **URL**: `GET /`
-- **Purpose**: Get API information and available endpoints
-
-## GitHub Webhook Setup
-
-1. Go to your GitHub repository settings
-2. Navigate to **Webhooks** section
-3. Click **Add webhook**
-4. Set the Payload URL to: `http://your-server.com:5000/webhook/github`
-5. Content type: `application/json`
-6. Select **Let me select individual events**
-7. Check only **Releases**
-8. Ensure **Active** is checked
-9. Save the webhook
-
-## Usage Example
-
-### Manual Deployment via API
-
-```bash
-# Deploy latest release of FtpHook repository
-curl -X POST http://localhost:5000/deploy/aliesm-com/FtpHook
-```
-
-### Response Example
-
-```json
-{
-  "success": true,
-  "message": "Successfully deployed release v1.0.0",
-  "release_info": {
-    "tag_name": "v1.0.0",
-    "name": "Release v1.0.0",
-    "published_at": "2025-07-19T12:00:00Z"
-  }
-}
-```
-
-## Configuration Details
-
-### FTP Settings
-- **FTP_HOST**: Your cPanel FTP hostname
-- **FTP_USER**: FTP username (usually email@domain.com for cPanel)
-- **FTP_PASSWORD**: FTP password
-- **FTP_REMOTE_DIR**: Target directory on server (e.g., `/public_html`)
-
-### GitHub Token
-- Optional for public repositories
-- Required for private repositories
-- Create at: GitHub Settings → Developer settings → Personal access tokens
-- Required scopes: `repo` (for private repos) or `public_repo` (for public repos)
-
-## Deployment
-
-### Using Docker
-
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-EXPOSE 5000
-
-CMD ["python", "app.py"]
-```
-
-### Using systemd (Linux)
-
-Create `/etc/systemd/system/github-deploy.service`:
-
-```ini
-[Unit]
-Description=GitHub Release FTP Deploy
-After=network.target
-
-[Service]
-Type=simple
-User=your-user
-WorkingDirectory=/path/to/your/app
-Environment=PATH=/path/to/your/venv/bin
-ExecStart=/path/to/your/venv/bin/python app.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-## Security Considerations
-
-1. **Environment Variables**: Never commit `.env` file to version control
-2. **HTTPS**: Use HTTPS in production for webhook endpoints
-3. **Webhook Secret**: Consider implementing GitHub webhook secret validation
-4. **FTP Credentials**: Use secure FTP passwords and consider SFTP if available
-5. **Network Security**: Restrict access to the webhook endpoint if possible
-
-## Troubleshooting
-
-### Common Issues
-
-1. **FTP Connection Failed**
-   - Verify FTP credentials
-   - Check if FTP service is enabled in cPanel
-   - Ensure correct hostname and port
-
-2. **GitHub API Rate Limiting**
-   - Add GITHUB_TOKEN for higher rate limits
-   - Check API usage in GitHub settings
-
-3. **Archive Extraction Failed**
-   - Ensure release contains valid ZIP or TAR.GZ files
-   - Check file permissions
-
-### Logs
-
-The application logs all operations. Check console output for detailed error messages.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+- `app.py`: Main application logic.
+- `requirements.txt`: Python dependencies.
+- `Dockerfile`: Docker image configuration.
+- `docker-compose.yml`: Docker Compose configuration.
+- `README.md`: Project documentation.
 
 ## License
 
-This project is open source and available under the MIT License.
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+## Contact
+
+For any inquiries, please contact the repository owner.
