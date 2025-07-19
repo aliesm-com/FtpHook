@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - API_KEY=${API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - FTP_HOST=${FTP_HOST}
+      - FTP_USER=${FTP_USER}
+      - FTP_PASSWORD=${FTP_PASSWORD}
+    volumes:
+      - .:/app
