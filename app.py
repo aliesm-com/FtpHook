@@ -29,11 +29,12 @@ class GitHubReleaseDownloader:
         self.base_url = "https://api.github.com"
         self.headers = {
             "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "GitHub-Release-Downloader"
+            "User-Agent": "GitHub-Release-Downloader",
+            "X-GitHub-Api-Version": "2022-11-28"
         }
         
         if self.token:
-            self.headers["Authorization"] = f"token {self.token}"
+            self.headers["Authorization"] = f"Bearer {self.token}"
     
     def get_latest_release(self) -> Optional[Dict[str, Any]]:
         """
