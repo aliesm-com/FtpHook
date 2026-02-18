@@ -8,6 +8,8 @@ services:
       - FLASK_ENV=development
       - APIKEY=${APIKEY}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITEA_TOKEN=${GITEA_TOKEN}
+      - GITEA_BASE_URL=${GITEA_BASE_URL}
       - FTP_HOST=${FTP_HOST}
       - FTP_USER=${FTP_USER}
       - FTP_PASSWORD=${FTP_PASSWORD}
