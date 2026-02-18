@@ -11,30 +11,30 @@ from flask import Flask, request, jsonify
 load_dotenv()
 
 
-class GitHubReleaseDownloader:
+class GiteaReleaseDownloader:
     """
-    Class for downloading the latest release from GitHub
+    Class for downloading the latest release from Gitea
     """
     
-    def __init__(self, repo_name: str, token: Optional[str] = None):
+    def __init__(self, repo_name: str, token: Optional[str] = None, base_url: Optional[str] = None):
         """
         Initialize the downloader
         
         Args:
             repo_name (str): Repository name in format "owner/repo"
-            token (str, optional): GitHub token for accessing private repositories
+            token (str, optional): Gitea token for accessing private repositories
+            base_url (str, optional): Gitea base URL (e.g. https://gitea.example.com)
         """
         self.repo_name = repo_name
         self.token = token
-        self.base_url = "https://api.github.com"
+        self.base_url = (base_url or "").rstrip("/")
         self.headers = {
-            "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "GitHub-Release-Downloader",
-            "X-GitHub-Api-Version": "2022-11-28"
+            "Accept": "application/json",
+            "User-Agent": "Gitea-Release-Downloader"
         }
         
         if self.token:
-            self.headers["Authorization"] = f"Bearer {self.token}"
+            self.headers["Authorization"] = f"token {self.token}"
         self.last_error: Optional[str] = None
 
     def _set_error(self, message: str) -> None:
@@ -48,7 +48,11 @@ class GitHubReleaseDownloader:
         Returns:
             Dict: Release information or None if error
         """
-        url = f"{self.base_url}/repos/{self.repo_name}/releases/latest"
+        if not self.base_url:
+            self._set_error("Gitea base URL is missing.")
+            return None
+
+        url = f"{self.base_url}/api/v1/repos/{self.repo_name}/releases/latest"
         
         try:
             response = requests.get(url, headers=self.headers)
@@ -100,8 +104,6 @@ class GitHubReleaseDownloader:
             print(f"Starting download: {filename}")
             
             headers = self.headers.copy()
-            if use_api_url:
-                headers["Accept"] = "application/octet-stream"
             
             with requests.get(download_url, headers=headers, stream=True) as response:
                 response.raise_for_status()
@@ -179,9 +181,9 @@ class GitHubReleaseDownloader:
         
         print(f"File found: {asset['name']} ({asset['size']} bytes)")
         
-        # Use the asset `url` for authenticated download
+        # Use the asset browser_download_url for download
         return self.download_file(
-            asset["url"],
+            asset["browser_download_url"],
             asset["name"],
             download_path,
             use_api_url=True
@@ -347,14 +349,15 @@ def download_extract_upload():
     if not data.get('api_key') or data.get('api_key') != os.getenv('APIKEY'):
         return jsonify({'error': 'API key is invalid or missing'}), 403
     download_path = './downloads'
-    github_token = os.getenv('GITHUB_TOKEN')
+    gitea_token = os.getenv('GITEA_TOKEN')
+    gitea_base_url = os.getenv('GITEA_BASE_URL')
     repo_name = data.get('repo_name')
     remote_path = data.get('remote_path')
 
-    if not repo_name or not github_token or not remote_path:
-        return jsonify({'error': 'repo_name, github_token, and remote_path are required'}), 400
+    if not repo_name or not gitea_token or not gitea_base_url or not remote_path:
+        return jsonify({'error': 'repo_name, gitea_token, gitea_base_url, and remote_path are required'}), 400
 
-    downloader = GitHubReleaseDownloader(repo_name, github_token)
+    downloader = GiteaReleaseDownloader(repo_name, gitea_token, gitea_base_url)
     success = downloader.download_extract_and_upload(download_path, remote_path)
 
     if success:
