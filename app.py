@@ -35,6 +35,11 @@ class GitHubReleaseDownloader:
         
         if self.token:
             self.headers["Authorization"] = f"Bearer {self.token}"
+        self.last_error: Optional[str] = None
+
+    def _set_error(self, message: str) -> None:
+        self.last_error = message
+        print(message)
     
     def get_latest_release(self) -> Optional[Dict[str, Any]]:
         """
@@ -50,7 +55,7 @@ class GitHubReleaseDownloader:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error getting release information: {e}")
+            self._set_error(f"Error getting release information: {e}")
             return None
     
     def find_release_asset(self, release_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -70,7 +75,7 @@ class GitHubReleaseDownloader:
             if pattern.match(asset["name"]):
                 return asset
         
-        print("No file found with pattern release-*.tar.gz")
+        self._set_error("No file found with pattern release-*.tar.gz")
         return None
     
     def download_file(self, download_url: str, filename: str, download_path: str = "./downloads", use_api_url: bool = False) -> bool:
@@ -119,10 +124,10 @@ class GitHubReleaseDownloader:
             return True
             
         except requests.exceptions.RequestException as e:
-            print(f"Error downloading file: {e}")
+            self._set_error(f"Error downloading file: {e}")
             return False
         except Exception as e:
-            print(f"Unexpected error: {e}")
+            self._set_error(f"Unexpected error: {e}")
             return False
     
     def extract_file(self, file_path: str, extract_to: str) -> bool:
@@ -145,7 +150,7 @@ class GitHubReleaseDownloader:
             print(f"Extraction completed successfully: {extract_to}")
             return True
         except Exception as e:
-            print(f"Error extracting file: {e}")
+            self._set_error(f"Error extracting file: {e}")
             return False
 
     def download_latest_release(self, download_path: str = "./downloads") -> bool:
@@ -193,11 +198,24 @@ class GitHubReleaseDownloader:
             bool: True if successful, False otherwise
         """
         # Download the latest release
-        if not self.download_latest_release(download_path):
+        release_data = self.get_latest_release()
+        if not release_data:
+            return False
+
+        asset = self.find_release_asset(release_data)
+        if not asset:
+            return False
+
+        if not self.download_file(
+            asset["url"],
+            asset["name"],
+            download_path,
+            use_api_url=True
+        ):
             return False
 
         # Determine the file path and extraction directory
-        file_name = self.find_release_asset(self.get_latest_release())["name"]
+        file_name = asset["name"]
         file_path = os.path.join(download_path, file_name)
         extract_to = os.path.join(download_path, file_name.replace(".tar.gz", ""))
 
@@ -223,7 +241,7 @@ class GitHubReleaseDownloader:
         ftp_password = os.getenv("FTP_PASSWORD")
 
         if not all([ftp_host, ftp_user, ftp_password]):
-            print("FTP credentials are missing in the .env file.")
+            self._set_error("FTP credentials are missing in the .env file.")
             return False
 
         try:
@@ -262,7 +280,7 @@ class GitHubReleaseDownloader:
             return True
 
         except Exception as e:
-            print(f"Error uploading to FTP: {e}")
+            self._set_error(f"Error uploading to FTP: {e}")
             return False
 
     def download_extract_and_upload(self, download_path: str = "./downloads", remote_path: str = None) -> bool:
@@ -285,7 +303,15 @@ class GitHubReleaseDownloader:
             remote_path = input("Enter the remote directory on the FTP server: ")
 
         # Determine the extraction directory
-        file_name = self.find_release_asset(self.get_latest_release())["name"]
+        release_data = self.get_latest_release()
+        if not release_data:
+            return False
+
+        asset = self.find_release_asset(release_data)
+        if not asset:
+            return False
+
+        file_name = asset["name"]
         extract_to = os.path.join(download_path, file_name.replace(".tar.gz", ""))
 
         # Upload to FTP
@@ -301,14 +327,14 @@ class GitHubReleaseDownloader:
                 os.remove(file_path)
                 print(f"Deleted file: {file_path}")
             except Exception as e:
-                print(f"Error deleting file {file_path}: {e}")
+                self._set_error(f"Error deleting file {file_path}: {e}")
 
             # Remove the extracted directory
             try:
                 shutil.rmtree(extract_to)
                 print(f"Deleted directory: {extract_to}")
             except Exception as e:
-                print(f"Error deleting directory {extract_to}: {e}")
+                self._set_error(f"Error deleting directory {extract_to}: {e}")
 
         return success
 
@@ -317,7 +343,7 @@ app = Flask(__name__)
 
 @app.route('/download-extract-upload', methods=['POST'])
 def download_extract_upload():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     if not data.get('api_key') or data.get('api_key') != os.getenv('APIKEY'):
         return jsonify({'error': 'API key is invalid or missing'}), 403
     download_path = './downloads'
@@ -334,7 +360,10 @@ def download_extract_upload():
     if success:
         return jsonify({'message': 'Download, extraction, and upload completed successfully'}), 200
     else:
-        return jsonify({'error': 'Operation failed'}), 500
+        return jsonify({
+            'error': 'Operation failed',
+            'details': downloader.last_error or 'Unknown error'
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
