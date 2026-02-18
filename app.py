@@ -209,7 +209,7 @@ class GiteaReleaseDownloader:
             return False
 
         if not self.download_file(
-            asset["url"],
+            asset["browser_download_url"],
             asset["name"],
             download_path,
             use_api_url=True
